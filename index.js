@@ -1,64 +1,37 @@
-import * as algoApi from "./algo_api/algoapi.js";
+import * as algoApi from "./algoapi.js";
+import { TransactionAnalyzer } from "./transactions.js";
+import data from "./data.js";
 
 
-const KnownApplicationIds = {
-    '233725850': 'Yieldly'
-};
+(async function main(args) {
+    const accountAddress =  args[2];
+    const account = await algoApi.getAccountInformation(accountAddress);
+    if (!account) {
+        throw new Error("Unknown account.");
+    }
+    const transactionAnalyzer = new TransactionAnalyzer(algoApi, data.AssetMap);
+    // AlgoExplorer api is surprisingly fast, limit to 10 requests / sec.
+    const options = {
+        afterDate: "2021-01-01T00:00:00Z",
+        beforeDate: "2022-01-01T00:00:00Z",
+        size: 100,
+    };
 
+    let transactionData = await algoApi.getTransactionList(accountAddress, options);
+    let nextToken = transactionData['next-token'];
 
-(async function main() {
-    const yahirsWalletAddress = "<insert wallet address>";
-    const account = await algoApi.getAccountInformation(yahirsWalletAddress);
+    //TODO: Write output to a file / csv output then upload into DB
+    //TODO: Write a loop that gets new data w/ the new token
+    //TODO: File a bug w/ AlgoExplorer, the Indexer doesn't seem to respect `limit` with both after/before dates work.
 
-    // the account object will have an "assets" key that describes all of my opted-in assets.
-    // let's print it out.
-    const assets = await algoApi.getFullAssetData(account.assets || []);
-    const assetMap = assets.map(asset => {
-        const assetId = asset.id;
-        return {
-            [assetId]: asset
-        }
+    transactionData.transactions.forEach(async (transaction) => {
+        await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
     });
-
-    const transactionData = await algoApi.getTransactionList(yahirsWalletAddress, 10);
-
-    function analyzeTransaction(transaction) {
-        const transactionType = transaction['tx-type'];
-        switch (transactionType) {
-            case 'appl':
-                handleApplicationTransaction(transaction);
-                break;
-            case 'axfer':
-                handleAssetTransferTransaction(transaction);
-                break;
-            case 'pay':
-                console.log("Handling a payment txn.");
-                break;
-            default:
-                console.log("Unknown transaction type of %d", transactionType);
-                break;
-        }
-    }
-
-    function handleAssetTransferTransaction(transaction) {
-        if (transaction.sender == yahirsWalletAddress) {
-            console.log("You are selling something.");
-        } else {
-            console.log("You are receiving something.");
-        }
-    }
-
-    function handleApplicationTransaction(transaction) {
-        const innerTransaction = transaction['application-transaction'];
-        const applicationId = innerTransaction['application-id']
-        let appName = KnownApplicationIds[applicationId];
-        if (!appName) {
-            // TODO: Get this from the algorand API.
-            console.log("Appname is unknown");
-        } else {
-            console.log("Handling a Yieldly transaction.");
-        }
-    }
-
-    transactionData.forEach(analyzeTransaction);
-})();
+    
+    console.log("Retreiving a new page of results w/ %s.", nextToken);
+    options.nextToken = nextToken;
+    transactionData = await algoApi.getTransactionList(accountAddress, options);
+    console.log("Got a new page of %d results w/ another token at %s",
+        transactionData.transactions.length,
+        transactionData['next-token']);
+})(process.argv);
