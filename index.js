@@ -1,6 +1,7 @@
+import fs from "fs";
+import path from "path";
 import * as algoApi from "./algoapi.js";
 import { TransactionAnalyzer } from "./transactions.js";
-import data from "./data.js";
 
 
 (async function main(args) {
@@ -9,29 +10,44 @@ import data from "./data.js";
     if (!account) {
         throw new Error("Unknown account.");
     }
-    const transactionAnalyzer = new TransactionAnalyzer(algoApi, data.AssetMap);
+    if (fs.existsSync("./results.csv")) {
+        fs.unlinkSync("./results.csv");
+    }
+    const resultFilePath = path.join(path.dirname("./index.js"), "results.csv");
+    const fileStream = fs.createWriteStream(resultFilePath, "utf8");
+    fileStream.on("drain", () => {
+        console.log("Flushing data.");
+    });
+    fileStream.write('Currency Name,Quantity,Buy/Sale,Timestamp\n');
+    const transactionAnalyzer = new TransactionAnalyzer(algoApi, fileStream);
+    transactionAnalyzer.init();
+
     // AlgoExplorer api is surprisingly fast, limit to 10 requests / sec.
     const options = {
         afterDate: "2021-01-01T00:00:00Z",
         beforeDate: "2022-01-01T00:00:00Z",
         size: 100,
+        nextToken: null
     };
 
+    let currentPage = 0;
     let transactionData = await algoApi.getTransactionList(accountAddress, options);
-    let nextToken = transactionData['next-token'];
+    options.nextToken = transactionData['next-token'];
 
-    //TODO: Write output to a file / csv output then upload into DB
-    //TODO: Write a loop that gets new data w/ the new token
-    //TODO: File a bug w/ AlgoExplorer, the Indexer doesn't seem to respect `limit` with both after/before dates work.
+    while (options.nextToken != null && currentPage < pageLimit) {
+        transactionData.transactions.forEach(async (transaction) => {
+            await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
+        });
+        
+        transactionData = await algoApi.getTransactionList(accountAddress, options);
+        options.nextToken = transactionData['next-token'];
 
-    transactionData.transactions.forEach(async (transaction) => {
-        await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
-    });
-    
-    console.log("Retreiving a new page of results w/ %s.", nextToken);
-    options.nextToken = nextToken;
-    transactionData = await algoApi.getTransactionList(accountAddress, options);
-    console.log("Got a new page of %d results w/ another token at %s",
-        transactionData.transactions.length,
-        transactionData['next-token']);
+        if (options.nextToken) {
+            console.log("Got a new page of %d results w/ another token at %s",
+            transactionData.transactions.length,
+            options.nextToken);
+        }
+        currentPage++;
+    }
+    fileStream.close();
 })(process.argv);

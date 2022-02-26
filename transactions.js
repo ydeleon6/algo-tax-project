@@ -1,15 +1,21 @@
 import * as algoApi from "./algoapi.js";
+import data from "./data.js";
 
 
 export class TransactionAnalyzer {
     /**
-     * Create a new transaction analyzer.
+     * Create a new transaction analyzer that looks through your transactions
+     * and makes notes of taxable events.
      * @param {algoApi} algoApi The algo api
-     * @param {object} assetMap A map of asset ids and their data.
+     * @param {WritableStream} assetMap The file stream to write to.
      */
-    constructor(algoApi, assetMap) {
+    constructor(algoApi, fileStream) {
         this.algoApi = algoApi;
-        this.assetMap = assetMap;
+        this.fileStream = fileStream;
+    }
+
+    init() {
+        this.assetMap = data.AssetMap;
     }
 
     /**
@@ -21,7 +27,7 @@ export class TransactionAnalyzer {
         const transactionType = transaction['tx-type'];
         switch (transactionType) {
             case 'appl':
-                await this.handleApplicationTransaction(transaction);
+                //await this.handleApplicationTransaction(transaction);
                 break;
             case 'axfer':
                 const transferTransaction = transaction['asset-transfer-transaction']
@@ -30,7 +36,7 @@ export class TransactionAnalyzer {
             case 'pay':
                 const paymentTransaction = transaction['payment-transaction'];
                 paymentTransaction['asset-id'] = 0; // 0 is Algo.
-                if (paymentTransaction.amount > 0) {
+                if (paymentTransaction.amount > 2000) { // 0.02 algo is the most i've spent on an app call to Yieldly/Tinyman.
                     await this.handleAssetTransferTransaction(transaction, paymentTransaction,  accountAddress);
                 }
                 break;
@@ -38,22 +44,6 @@ export class TransactionAnalyzer {
                 console.log("Unknown transaction type of %d", transactionType);
                 break;
         }
-    }
-
-    getAppType(txnType) {
-        switch(txnType) {
-            case 'appl':
-                return 'ApplicationCall';
-            case 'axfer':
-                return 'AssetTransfer';
-            case 'pay':
-                return 'PaymentTransaction';
-        }
-        return 'Unknown'
-    }
-
-    async handlePaymentTransaction(transaction) {
-        console.log(JSON.stringify(transaction, null, 3))
     }
 
     /**
@@ -76,27 +66,14 @@ export class TransactionAnalyzer {
         const realQuantity = innerTransaction.amount / Math.pow(10, asset.decimals);
         
         if ((innerTransaction.receiver === transaction.sender) && realQuantity === 0) {
-            console.log(`User opted in to ${asset.name}.`);
+            console.log(`User opted in to ${asset.name}. Skipping`);
             return;
         }
-        const quantity = `${realQuantity} ${asset.name}`;
-        const blockInfo = await this.algoApi.getBlockDetails(transaction['confirmed-round'])
+        const blockInfo = await this.algoApi.getBlockDetails(transaction['confirmed-round']);
         const date = new Date((blockInfo.timestamp * 1000)); // timestamp stores value in seconds.
         const timestamp = date.toLocaleDateString() + " " + date.toLocaleTimeString();
-
-        if (innerTransaction.receiver === accountAddress) {
-            console.log(`You are receiving ${quantity} from ${transaction.sender} on ${timestamp}.`);
-        } else {
-            console.log(`You are sending ${quantity} to ${innerTransaction.receiver} on ${timestamp}.`);
-        }
-    }
-
-    /**
-     * Process an application transaction. These can come from smart contracts like Yieldly staking pools, de-fi stuff, etc.
-     * @param {object} transaction The transaction object.
-     */
-     async handleApplicationTransaction(transaction, innerTransaction, accountAddress) {
-        const applicationId = transaction['application-id'];
-        //console.debug(`App Call to ${applicationId}`);
+        const action = innerTransaction.receiver === accountAddress ? "Buy" : "Sale";
+        const dataRow = `${realQuantity},'${asset.name}',${action},${timestamp}\n`;
+        this.fileStream.write(dataRow);
     }
 }

@@ -51,6 +51,9 @@ export async function getTransactionList(accountId, options) {
     if (options.size) {
         baseTransactionUrl += `&limit=${options.size}`;
     }
+    if (options.nextToken) {
+        baseTransactionUrl += `&next=${options.nextToken}`;
+    }
     const transactionJson = await callAlgorandApi(baseTransactionUrl, HttpVerb.GET);
     return transactionJson;
 }
