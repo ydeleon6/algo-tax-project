@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import * as algoApi from "./algoapi.js";
+import * as indexerApi from "./api/indexer.js";
 import { TransactionAnalyzer } from "./transactions.js";
 
 function createResultFile(fileName) {
@@ -25,12 +25,12 @@ function writeReportFile(transactionAnalyzer) {
 
 (async function main(args) {
     const accountAddress =  args[2];
-    const account = await algoApi.getAccountInformation(accountAddress);
+    const account = await indexerApi.getAccountInformation(accountAddress);
     if (!account) {
         throw new Error("Unknown account.");
     }
     const fileStream = createResultFile("results.csv");
-    const transactionAnalyzer = new TransactionAnalyzer(algoApi, fileStream);
+    const transactionAnalyzer = new TransactionAnalyzer(indexerApi, fileStream);
     transactionAnalyzer.init();
 
     // AlgoExplorer api is surprisingly fast, limit to 10 requests / sec.
@@ -42,7 +42,7 @@ function writeReportFile(transactionAnalyzer) {
     };
 
     let currentPage = 0;
-    let transactionData = await algoApi.getTransactionList(accountAddress, options);
+    let transactionData = await indexerApi.getTransactionList(accountAddress, options);
     options.nextToken = transactionData['next-token'];
 
     while (options.nextToken != null) {
@@ -50,7 +50,7 @@ function writeReportFile(transactionAnalyzer) {
             await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
         });
         
-        transactionData = await algoApi.getTransactionList(accountAddress, options);
+        transactionData = await indexerApi.getTransactionList(accountAddress, options);
         options.nextToken = transactionData['next-token'];
 
         if (options.nextToken) {

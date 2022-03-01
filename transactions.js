@@ -1,4 +1,4 @@
-import * as algoApi from "./algoapi.js";
+import * as indexerApi from "./api/indexer.js";
 import data from "./data.js";
 
 
@@ -56,11 +56,11 @@ export class TransactionAnalyzer {
     /**
      * Create a new transaction analyzer that looks through your transactions
      * and makes notes of taxable events.
-     * @param {algoApi} algoApi The algo api.
-     * @param {WritableStream} assetMap The file stream to write to.
+     * @param {indexerApi} indexerApi The indexer api.
+     * @param {WritableStream} fileStream The file stream to write to.
      */
-    constructor(algoApi, fileStream) {
-        this.algoApi = algoApi;
+    constructor(indexerApi, fileStream) {
+        this.indexerApi = indexerApi;
         this.fileStream = fileStream;
         this.report = new TransactionReport();
     }
@@ -150,28 +150,28 @@ export class TransactionAnalyzer {
 
         if (!asset) {
             console.log("Unknown asset %d", assetId);
-            const results = await this.algoApi.getFullAssetData([assetId]);
+            const results = await this.indexerApi.getAssetInfo(assetId);
             // add to the asset map
             asset = results[0];
             this.assetMap[assetId] = asset;
         }
+        const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);
+        const data = {
+            quantity: innerTransaction.amount / Math.pow(10, asset.decimals),
+            timestamp: new Date(blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
+            currencyName: asset.name,
+            id: transaction.id,
+            note: transaction.note,
+            action: innerTransaction.receiver === accountAddress ? "Buy" : "Sell"
+        };
 
-        const quantity = innerTransaction.amount / Math.pow(10, asset.decimals);
-        const blockInfo = await this.algoApi.getBlockDetails(transaction['confirmed-round']);
-        const currencyName = asset.name;
-        const {id, note} = transaction;
-        const timestamp = new Date((blockInfo.timestamp * 1000)); // timestamp stores value in seconds.
-        let action = "";
-
-        if (innerTransaction.receiver === accountAddress) {
-            action = "Buy";
+        if (data.action === "Buy") {
             this.report.buyCount++;
         } else {
-            action = "Sale";
             this.report.salesCount++;
         }
-        // write the buy/sale.
-        const dataRow = new DataRow({id, currencyName, quantity, note, timestamp, action });
+        // write the transaction to the file..
+        const dataRow = new DataRow(data);
         this.fileStream.write(dataRow.toString());
     }
 }
