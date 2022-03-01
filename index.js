@@ -3,6 +3,25 @@ import path from "path";
 import * as algoApi from "./algoapi.js";
 import { TransactionAnalyzer } from "./transactions.js";
 
+function createResultFile(fileName) {
+    if (fs.existsSync(fileName)) {
+        fs.unlinkSync(fileName);
+    }
+    const resultFilePath = path.join(path.dirname("./index.js"), fileName);
+    const fileStream = fs.createWriteStream(resultFilePath, "utf-8");
+    fileStream.on("drain", () => {
+        console.log("Flushing data.");
+    });
+    return fileStream;
+}
+
+function writeReportFile(transactionAnalyzer) {
+    const report = JSON.stringify(transactionAnalyzer.report, null, 4);
+    const resultFilePath = path.join(path.dirname("./index.js"), "report.json");
+    const reportStream = fs.createWriteStream(resultFilePath, "utf-8");
+    reportStream.write(report);
+    reportStream.close();
+}
 
 (async function main(args) {
     const accountAddress =  args[2];
@@ -10,15 +29,7 @@ import { TransactionAnalyzer } from "./transactions.js";
     if (!account) {
         throw new Error("Unknown account.");
     }
-    if (fs.existsSync("./results.csv")) {
-        fs.unlinkSync("./results.csv");
-    }
-    const resultFilePath = path.join(path.dirname("./index.js"), "results.csv");
-    const fileStream = fs.createWriteStream(resultFilePath, "utf8");
-    fileStream.on("drain", () => {
-        console.log("Flushing data.");
-    });
-    fileStream.write('Currency Name,Quantity,Buy/Sale,Timestamp\n');
+    const fileStream = createResultFile("results.csv");
     const transactionAnalyzer = new TransactionAnalyzer(algoApi, fileStream);
     transactionAnalyzer.init();
 
@@ -34,7 +45,7 @@ import { TransactionAnalyzer } from "./transactions.js";
     let transactionData = await algoApi.getTransactionList(accountAddress, options);
     options.nextToken = transactionData['next-token'];
 
-    while (options.nextToken != null && currentPage < pageLimit) {
+    while (options.nextToken != null) {
         transactionData.transactions.forEach(async (transaction) => {
             await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
         });
@@ -49,5 +60,7 @@ import { TransactionAnalyzer } from "./transactions.js";
         }
         currentPage++;
     }
+
     fileStream.close();
+    writeReportFile(transactionAnalyzer);
 })(process.argv);
