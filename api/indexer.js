@@ -42,13 +42,15 @@ export async function getAccountInformation(accountAddress) {
 
 /**
  * Search for Algorand transactions for the given options.
- * @param {String} accountAddress The Algorand account public address.
  * @param {object} options Additional options to pass to the transaction search API.
  * @returns A list of transactions.
  */
-export async function getTransactionList(accountAddress, options) {
-    let baseTransactionUrl = `/v2/transactions?address=${accountAddress}`;
+export async function getTransactionList(options) {
+    let baseTransactionUrl = `/v2/transactions`;
 
+    if (options.address) {
+        baseTransactionUrl += `?address=${options.address}`;
+    }
     if (options.afterDate) {
         baseTransactionUrl += `&after-time=${options.afterDate}`
     }

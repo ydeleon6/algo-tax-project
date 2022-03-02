@@ -1,27 +1,8 @@
-import fs from "fs";
-import path from "path";
 import * as indexerApi from "./api/indexer.js";
-import { TransactionAnalyzer } from "./transactions.js";
+import { TransactionAnalyzer, TransactionStagingFileWriter } from "./transactions.js";
+import { TransactionFileWriter } from "./data/file-writer.js";
+import { TransactionsDb } from "./data/database.js";
 
-function createResultFile(fileName) {
-    if (fs.existsSync(fileName)) {
-        fs.unlinkSync(fileName);
-    }
-    const resultFilePath = path.join(path.dirname("./index.js"), fileName);
-    const fileStream = fs.createWriteStream(resultFilePath, "utf-8");
-    fileStream.on("drain", () => {
-        console.log("Flushing data.");
-    });
-    return fileStream;
-}
-
-function writeReportFile(transactionAnalyzer) {
-    const report = JSON.stringify(transactionAnalyzer.report, null, 4);
-    const resultFilePath = path.join(path.dirname("./index.js"), "report.json");
-    const reportStream = fs.createWriteStream(resultFilePath, "utf-8");
-    reportStream.write(report);
-    reportStream.close();
-}
 
 (async function main(args) {
     const accountAddress =  args[2];
@@ -29,38 +10,40 @@ function writeReportFile(transactionAnalyzer) {
     if (!account) {
         throw new Error("Unknown account.");
     }
-    const fileStream = createResultFile("results.csv");
-    const transactionAnalyzer = new TransactionAnalyzer(indexerApi, fileStream);
-    transactionAnalyzer.init();
-
-    // AlgoExplorer api is surprisingly fast, limit to 10 requests / sec.
+    const transactionsCsvWriter = new TransactionStagingFileWriter(indexerApi);
     const options = {
         afterDate: "2021-01-01T00:00:00Z",
-        beforeDate: "2022-01-01T00:00:00Z",
+        beforeDate: "2021-12-31T23:59:59Z",
         size: 100,
-        nextToken: null
+        nextToken: null,
+        address: accountAddress
     };
 
     let currentPage = 0;
-    let transactionData = await indexerApi.getTransactionList(accountAddress, options);
+    let transactionData = await indexerApi.getTransactionList(options);
     options.nextToken = transactionData['next-token'];
 
     while (options.nextToken != null) {
-        transactionData.transactions.forEach(async (transaction) => {
-            await transactionAnalyzer.analyzeTransaction(transaction, accountAddress)
-        });
+        const transactions = transactionData.transactions || [];
+
+        transactions.forEach(async (transaction) => {
+            // write all transactions to a .csv so we can cross-check them later.
+            await transactionsCsvWriter.importTransaction(transaction);
+            //await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
+         });
         
-        transactionData = await indexerApi.getTransactionList(accountAddress, options);
+        transactionData = await indexerApi.getTransactionList(options);
         options.nextToken = transactionData['next-token'];
 
         if (options.nextToken) {
-            console.log("Got a new page of %d results w/ another token at %s",
+            console.log("Got a new page of %d results w/ another token %s",
             transactionData.transactions.length,
             options.nextToken);
         }
         currentPage++;
     }
 
-    fileStream.close();
-    writeReportFile(transactionAnalyzer);
+    transactionsCsvWriter.close();
+    //fileWriter.close();
+    //fileWriter.writeReport();
 })(process.argv);

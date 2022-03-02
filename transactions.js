@@ -1,74 +1,23 @@
 import * as indexerApi from "./api/indexer.js";
-import data from "./data.js";
+import data from "./data/common.js";
+import { RawTransactionImporter, TransactionFileWriter } from "./data/file-writer.js";
 
-
-export class TransactionReport {
-    constructor() {
-        // Transactions we skip because they're like close-rewards
-        // or opt-in transactions.
-        this.skippedCount = 0;
-        // The # of transactions where we received anything substantial.
-        this.buyCount = 0;
-        // The # of transactions where we sent > 0.02 algo worth of shit.
-        this.salesCount = 0;
-        // Small transactions we skip because they're like 99.9% sent to 
-        // smart contracts like Yieldly/Tinyman. I noticed these aren't more than 0.02
-        // algo so w/o more info I'm using this as a rule.
-        this.paymentTransactions = 0;
-        // Unknown transactions.
-        this.unknownTransactions = 0;
-        // Application call transactions to Yieldly/Tinyman, I'm pretty sure these
-        // don't swap money
-        this.appCalls = 0;
-    }
-}
-
-class DataRow {
-    constructor({id, currencyName, quantity, action, timestamp, note}){
-        this.id = id;
-        this.currencyName = currencyName;
-        this.quantity = quantity;
-        this.action = action;
-        this.timestamp = timestamp;
-        this.note = note;
-    }
-
-    static get headers(){
-        const headers = ["ID","Currency Name","Quantity","Buy/Sale","Timestamp","Note"];
-        return `${headers.join(',')}\n`;
-    }
-
-    toString() {
-        const timeStr = `${this.timestamp.toLocaleDateString()} ${this.timestamp.toLocaleTimeString()}`;
-        const row = [
-            this.id,
-            `${this.currencyName}`,
-            this.quantity,
-            this.action,
-            timeStr,
-            `${this.note || ''}`
-        ]
-        return `${row.join(',')}\n`;
-    }
-}
 
 export class TransactionAnalyzer {
     /**
      * Create a new transaction analyzer that looks through your transactions
      * and makes notes of taxable events.
      * @param {indexerApi} indexerApi The indexer api.
-     * @param {WritableStream} fileStream The file stream to write to.
+     * @param {TransactionFileWriter} fileWriter The transaction file writer
      */
-    constructor(indexerApi, fileStream) {
+    constructor(indexerApi, fileWriter) {
         this.indexerApi = indexerApi;
-        this.fileStream = fileStream;
-        this.report = new TransactionReport();
+        this.fileWriter = fileWriter;
     }
 
     init() {
         //TODO: Load data from the database.
         this.assetMap = data.AssetMap;
-        this.fileStream.write(DataRow.headers);
     }
 
     isOptInTransaction(transaction) {
@@ -86,7 +35,7 @@ export class TransactionAnalyzer {
            && innerTransaction.receiver === transaction.sender
            && transaction.amount === 0) {
             console.log(`User opted in to ${asset.name}. Skipping`);
-            this.report.skippedCount++;
+            this.fileWriter.skip(transaction, "Opt-In")
             isOptIn = true;
         }
         return isOptIn;
@@ -105,18 +54,17 @@ export class TransactionAnalyzer {
 
         switch (transactionType) {
             case 'appl':
-                this.report.appCalls++;
+                this.fileWriter.skip(transaction, "Application")
                 break;
             case 'axfer':
                 const transferTransaction = transaction['asset-transfer-transaction']
-                await this.handleAssetTransferTransaction(transaction, transferTransaction, accountAddress);
+                await this.writeTaxableTransaction(transaction, transferTransaction, accountAddress);
                 break;
             case 'pay':
                 await this.handlePaymentTransaction(transaction, accountAddress);
                 break;
             default:
-                this.report.unknownTransactions++;
-                console.log("Unknown transaction type of %d", transactionType);
+                console.error("Unknown transaction type of %d", transactionType);
                 break;
         }
     }
@@ -124,18 +72,18 @@ export class TransactionAnalyzer {
     async handlePaymentTransaction(transaction, accountAddress) {
         const paymentTransaction = transaction['payment-transaction'];
 
-        if (paymentTransaction.amount > 2000) {
+        if (paymentTransaction.amount >= 2000) {
             if (transaction.note) {
                 // if it has a note, skip it - I only use them for sending money between accounts/exchanges
-                this.report.skippedCount++;
+                this.fileWriter.skip(transaction);
             } else {
                 // report payments greater than the 0.02 algo min.
                 paymentTransaction['asset-id'] = 0; // payments are in algo AFAIK
-                await this.handleAssetTransferTransaction(transaction, paymentTransaction, accountAddress);
+                await this.writeTaxableTransaction(transaction, paymentTransaction, accountAddress);
             }
         } else {
             //TODO: It'd be cool to cross-check this with known addresses like Yieldly/Tinyman contracts.
-            this.report.paymentTransactions++;
+            this.fileWriter.skip(transaction, "Payment");
         }
     }
 
@@ -144,7 +92,7 @@ export class TransactionAnalyzer {
      * @param {object} transaction The transaction object.
      * @param {String} accountAddress The account address to compare.
      */
-    async handleAssetTransferTransaction(transaction, innerTransaction, accountAddress) {
+    async writeTaxableTransaction(transaction, innerTransaction, accountAddress) {
         const assetId = innerTransaction['asset-id'];
         let asset = this.assetMap[assetId];
 
@@ -164,14 +112,56 @@ export class TransactionAnalyzer {
             note: transaction.note,
             action: innerTransaction.receiver === accountAddress ? "Buy" : "Sell"
         };
+        this.fileWriter.writeTransaction(data);
+    }
+}
 
-        if (data.action === "Buy") {
-            this.report.buyCount++;
-        } else {
-            this.report.salesCount++;
+export class TransactionStagingFileWriter {
+    constructor(indexerApi, accountAddress) {
+        this.assetMap = data.AssetMap;
+        this.accountAddress = accountAddress;
+        this.indexerApi = indexerApi;
+        this.filename = `staging_transactions_${data.newGuid()}.csv`;
+        this.fileWriter = new RawTransactionImporter(this.filename);
+    }
+    async importTransaction (transaction) {
+        const transactionType = transaction['tx-type'];
+
+        let innerTransaction = {};
+        if (transactionType === 'appl') {
+            // fake asset info for the purpose of having something in a row
+            innerTransaction = {
+                'asset-id': -1,
+                'amount': 0,
+                'receiver': ''
+            };
+        } else if (transactionType === 'pay') {
+            innerTransaction = transaction['payment-transaction'];
+        } else if (transactionType === 'axfer') {
+            innerTransaction = transaction['asset-transfer-transaction'];
         }
-        // write the transaction to the file..
-        const dataRow = new DataRow(data);
-        this.fileStream.write(dataRow.toString());
+
+        const assetId = innerTransaction['asset-id'] || 0; // if no asset is provided assume algorand.
+
+        if (!assetId && transactionType === 'pay') {
+            console.log("hi");
+        }
+        const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);
+        const data = {
+            quantity: innerTransaction.amount,
+            timestamp: new Date(blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
+            asset: assetId,
+            id: transaction.id,
+            groupId: transaction.group,
+            note: transaction.note,
+            sender: transaction.sender,
+            receiver: innerTransaction.receiver,
+            type: transactionType
+        };
+        this.fileWriter.writeTransaction(data);
+    }
+
+    close() {
+        this.fileWriter.close();
     }
 }

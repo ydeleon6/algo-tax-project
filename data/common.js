@@ -1,3 +1,4 @@
+import crypto from "crypto";
 // TODO: Load applications / asset data from a database or something.
 // Do people stil use MongoDB? Could be useful.
 const KnownApplications = {
@@ -9,6 +10,7 @@ const KnownApplications = {
 const ApplicationIdToNameMap = Object.values(KnownApplications).map(app => ({ [app.appId]: app.name }));
 
 const AssetMap =   {
+    '-1': { name: 'N/A', id: -1, decimals: 1 },
     '0': { name:'Algorand', id: 0, decimals: 6 },
     '31566704': { name: 'USDC', id: 31566704, decimals: 6 },
     '226701642': { name: 'Yieldly', id: 226701642, decimals: 6 },
@@ -17,8 +19,16 @@ const AssetMap =   {
     '444108880': { name: 'CryptoTrees', id: 444108880, decimals: 0 }
 };
 
+function uuidv4() {
+    return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+  }
+  
+
 export default {
     KnownApplications,
     ApplicationIdToNameMap,
-    AssetMap
+    AssetMap,
+    newGuid: uuidv4
 };
