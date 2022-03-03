@@ -117,13 +117,15 @@ export class TransactionAnalyzer {
 }
 
 export class TransactionStagingFileWriter {
+
     constructor(indexerApi, accountAddress) {
         this.assetMap = data.AssetMap;
         this.accountAddress = accountAddress;
         this.indexerApi = indexerApi;
-        this.filename = `staging_transactions_${data.newGuid()}.csv`;
+        this.filename = `staging_transactions.csv`;
         this.fileWriter = new RawTransactionImporter(this.filename);
     }
+
     async importTransaction (transaction) {
         const transactionType = transaction['tx-type'];
 
@@ -139,13 +141,11 @@ export class TransactionStagingFileWriter {
             innerTransaction = transaction['payment-transaction'];
         } else if (transactionType === 'axfer') {
             innerTransaction = transaction['asset-transfer-transaction'];
+        } else if (transactionType === 'appl') {
+            innerTransaction = transaction['application-transaction']
         }
 
         const assetId = innerTransaction['asset-id'] || 0; // if no asset is provided assume algorand.
-
-        if (!assetId && transactionType === 'pay') {
-            console.log("hi");
-        }
         const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);
         const data = {
             quantity: innerTransaction.amount,
@@ -156,6 +156,7 @@ export class TransactionStagingFileWriter {
             note: transaction.note,
             sender: transaction.sender,
             receiver: innerTransaction.receiver,
+            applicationId: innerTransaction['application-id'],
             type: transactionType
         };
         this.fileWriter.writeTransaction(data);

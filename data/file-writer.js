@@ -48,7 +48,7 @@ class CsvWriter {
 export class TransactionFileWriter extends CsvWriter {
     constructor(fileName) {
         super(fileName);
-        this.fileStream.write(`ID","Currency Name","Quantity","Buy/Sale","Timestamp","Note"\n`);
+        this.fileStream.write(`ID,Currency Name,Quantity,Buy/Sale,Timestamp,Note\n`);
         this.report = new TransactionFileReport();
     }
 
@@ -93,7 +93,7 @@ export class TransactionFileWriter extends CsvWriter {
 export class RawTransactionImporter extends CsvWriter {
     constructor(fileName) {
         super(fileName);
-        this.fileStream.write("Timestamp,ID,Group ID,Type,Sender,Receiver,Asset,Quantity,Note\n");
+        this.fileStream.write("Timestamp,Txn ID,Group ID,Type,Sender,Receiver,Asset,Quantity,Note,Application ID\n");
     }
 
     writeTransaction(data) {
@@ -101,13 +101,14 @@ export class RawTransactionImporter extends CsvWriter {
         const row = [
             timeStr,
             data.id,
-            `${data.groupId}`,
+            `${data.groupId || ''}`,
             data.type,
             data.sender,
             data.receiver,
             `${data.asset < 0 ? '' : data.asset}`,
             data.quantity,
-            `${data.note || ''}`
+            `${data.note || ''},`,
+            `${data.applicationId || ''}`
         ];
         this.writeCsvRow(row);
     }

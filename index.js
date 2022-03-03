@@ -1,35 +1,28 @@
 import * as indexerApi from "./api/indexer.js";
 import { TransactionAnalyzer, TransactionStagingFileWriter } from "./transactions.js";
 import { TransactionFileWriter } from "./data/file-writer.js";
-import { TransactionsDb } from "./data/database.js";
+import { TransactionDataAccess } from "./data/database.js";
 
 
-(async function main(args) {
-    const accountAddress =  args[2];
-    const account = await indexerApi.getAccountInformation(accountAddress);
-    if (!account) {
-        throw new Error("Unknown account.");
-    }
-    const transactionsCsvWriter = new TransactionStagingFileWriter(indexerApi);
+const createTransactionsStagingFile = async (accountAddress) => {
     const options = {
         afterDate: "2021-01-01T00:00:00Z",
         beforeDate: "2021-12-31T23:59:59Z",
-        size: 100,
+        limit: 100,
         nextToken: null,
         address: accountAddress
     };
 
-    let currentPage = 0;
     let transactionData = await indexerApi.getTransactionList(options);
     options.nextToken = transactionData['next-token'];
 
+    const transactionsCsvWriter = new TransactionStagingFileWriter(indexerApi, accountAddress);
+    // write all transactions to a .csv so we can cross-check them later.
     while (options.nextToken != null) {
         const transactions = transactionData.transactions || [];
 
         transactions.forEach(async (transaction) => {
-            // write all transactions to a .csv so we can cross-check them later.
             await transactionsCsvWriter.importTransaction(transaction);
-            //await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
          });
         
         transactionData = await indexerApi.getTransactionList(options);
@@ -40,10 +33,27 @@ import { TransactionsDb } from "./data/database.js";
             transactionData.transactions.length,
             options.nextToken);
         }
-        currentPage++;
     }
 
     transactionsCsvWriter.close();
+};
+
+(async function main(args) {
+    const accountAddress =  args[2];
+    const account = await indexerApi.getAccountInformation(accountAddress);
+    if (!account) {
+        throw new Error("Unknown account.");
+    }
+
+    // Create staging file.
+    //await createTransactionsStagingFile(accountAddress);
+
+    let transactionsDb = new TransactionDataAccess();
+    let result = await transactionsDb.dropSchema();
+    console.log(result);
+    result = await transactionsDb.initializeSchema();
+    console.log(result);
+
     //fileWriter.close();
     //fileWriter.writeReport();
 })(process.argv);

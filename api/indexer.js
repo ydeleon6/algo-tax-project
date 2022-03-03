@@ -57,8 +57,8 @@ export async function getTransactionList(options) {
     if (options.beforeDate) {
         baseTransactionUrl += `&before-time=${options.beforeDate}`
     }
-    if (options.size) {
-        baseTransactionUrl += `&limit=${options.size}`;
+    if (options.limit) {
+        baseTransactionUrl += `&limit=${options.limit}`;
     }
     if (options.nextToken) {
         baseTransactionUrl += `&next=${options.nextToken}`;
