@@ -98,9 +98,9 @@ export class TransactionAnalyzer {
 
         if (!asset) {
             console.log("Unknown asset %d", assetId);
-            const results = await this.indexerApi.getAssetInfo(assetId);
+            const result = await this.indexerApi.getAssetInfo(assetId);
             // add to the asset map
-            asset = results[0];
+            asset = result;
             this.assetMap[assetId] = asset;
         }
         const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);

@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import { HttpVerb } from "./common.js";
 
+const baseUrl = new URL("https://algoindexer.algoexplorerapi.io");
 
 async function callAlgorandIndexerApi(relativeUrl, method, customHeaders = null) {
     const requestInfo = {
@@ -15,8 +16,7 @@ async function callAlgorandIndexerApi(relativeUrl, method, customHeaders = null)
         // Copy our finalHeaders 'over' the customHeaders. We override content-type right now.
         finalHeaders = Object.assign(customHeaders, finalHeaders);
     }
-
-    const fullUrl = "https://algoindexer.algoexplorerapi.io" + relativeUrl;
+    const fullUrl = new URL(relativeUrl, baseUrl);
     const response = await fetch(fullUrl, requestInfo);
     const result = await response.json();
     const isSuccessful = response.status === 200;
