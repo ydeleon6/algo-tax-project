@@ -32,6 +32,8 @@ class CsvWriter {
         }
         this.resultFilePath = fullFileName;
         this.fileStream = fs.createWriteStream(this.resultFilePath, "utf-8");
+        const logPath = path.join(this.rootDir, fileName.replace('csv','log'));
+        this.logStream = fs.createWriteStream(logPath, 'ascii');
     }
 
     writeCsvRow(data){
@@ -42,6 +44,7 @@ class CsvWriter {
 
     close() {
         this.fileStream.close();
+        this.logStream.close();
     }
 }
 
@@ -84,9 +87,7 @@ export class TransactionFileWriter extends CsvWriter {
     writeReport() {
         const report = JSON.stringify(this.report, null, 4);
         const reportFilePath = path.join(this.rootDir, "report.json");
-        const reportStream = fs.createWriteStream(reportFilePath, "utf-8");
-        reportStream.write(report);
-        reportStream.close();
+        fs.writeFileSync(reportFilePath, report);
     }
 }
 
@@ -111,8 +112,17 @@ export class RawTransactionImporter extends CsvWriter {
         ];
         this.writeCsvRow(row);
     }
-    
-    close() {
-        this.fileStream.close();
+}
+
+export class CoinTrackerCsvWriter extends CsvWriter {
+    constructor(fileName) {
+        super(fileName);
+        this.fileStream.write("Date,Received Quantity,Received Currency,Sent Quantity,Sent Currency,Fee Amount,Fee Currency,Tag\n");
+    }
+
+    writeTransaction(transaction) {
+        const timeStr = `${data.timestamp.toLocaleDateString()} ${data.timestamp.toLocaleTimeString()}`;
+        const data = [timeStr];
+        
     }
 }

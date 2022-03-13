@@ -10,16 +10,24 @@ export class TransactionAnalyzer {
      * @param {indexerApi} indexerApi The indexer api.
      * @param {TransactionFileWriter} fileWriter The transaction file writer
      */
-    constructor(indexerApi, fileWriter) {
+    constructor(indexerApi, fileWriter, logger) {
         this.indexerApi = indexerApi;
         this.fileWriter = fileWriter;
+        this.logger = logger;
     }
 
     init() {
         //TODO: Load data from the database.
         this.assetMap = data.AssetMap;
+        this.knownApplications = data.KnownApplications;
+        this.knownAddresses = data.KnownAddresses;
     }
 
+    /**
+     * Check if the transaction is a non-taxable opt-in transaction.
+     * @param {transaction} transaction The transaction
+     * @returns True if the transaction was an asset opt-in transaction.
+     */
     isOptInTransaction(transaction) {
         const transactionType = transaction['tx-type'];
         let isOptIn = false;
@@ -54,7 +62,7 @@ export class TransactionAnalyzer {
 
         switch (transactionType) {
             case 'appl':
-                this.fileWriter.skip(transaction, "Application")
+                await this.handleApplicationCall(transaction, accountAddress);
                 break;
             case 'axfer':
                 const transferTransaction = transaction['asset-transfer-transaction']
@@ -69,22 +77,43 @@ export class TransactionAnalyzer {
         }
     }
 
+    // Log what app calls are being done.
+    async handleApplicationCall(transaction, accountAddress) {
+        const appTransaction = transaction['application-transaction'];
+        const appId = appTransaction['application-id'];
+        const fee = await this.assetMap.getDisplayValue(0, transaction.fee);
+        const appName = await this.knownApplications.getNameById(appId);
+
+        //TODO: Not sure I need this. I guess if I was tracking this too I could.
+        // let accountNames = appTransactions.accounts;
+
+        if (transaction.sender === accountAddress) {
+            console.log("You called the %s application with a %d Algo fee.", appName, fee);
+        } else {
+            console.log("The %s application called you.", appName);
+        }
+        this.fileWriter.skip(transaction, "Application");
+    }
+
     async handlePaymentTransaction(transaction, accountAddress) {
         const paymentTransaction = transaction['payment-transaction'];
+        const paymentAmount = paymentTransaction.amount;
+        // Could I figure this out which payments are "fees" vs. "staking" from the surrounding 
+        // transactions? I would have to do a database query or something.
+        // if it's staking, we would pay taxes I think?
+        if (paymentAmount) {
+            // Log who we sent/received a payment from.
+            const displayAmount = await this.assetMap.getDisplayValue(0, paymentAmount);
 
-        if (paymentTransaction.amount >= 2000) {
-            if (transaction.note) {
-                // if it has a note, skip it - I only use them for sending money between accounts/exchanges
-                this.fileWriter.skip(transaction);
-            } else {
-                // report payments greater than the 0.02 algo min.
-                paymentTransaction['asset-id'] = 0; // payments are in algo AFAIK
-                await this.writeTaxableTransaction(transaction, paymentTransaction, accountAddress);
+            if (transaction.sender === accountAddress) {
+                const receiverName = await this.knownAddresses.getNameByAddress(paymentTransaction.receiver);
+                console.log("You paid %d Algos to the %s account.", displayAmount, receiverName);
+            } else if (paymentTransaction.receiver === accountAddress) {
+                const senderName = await this.knownAddresses.getNameByAddress(transaction.sender);
+                console.log("You were paid %d Algos from the %s account.", displayAmount, senderName);
             }
-        } else {
-            //TODO: It'd be cool to cross-check this with known addresses like Yieldly/Tinyman contracts.
-            this.fileWriter.skip(transaction, "Payment");
         }
+        this.fileWriter.skip(transaction, "Payment");
     }
 
     /**
@@ -94,24 +123,25 @@ export class TransactionAnalyzer {
      */
     async writeTaxableTransaction(transaction, innerTransaction, accountAddress) {
         const assetId = innerTransaction['asset-id'];
-        let asset = this.assetMap[assetId];
-
-        if (!asset) {
-            console.log("Unknown asset %d", assetId);
-            const result = await this.indexerApi.getAssetInfo(assetId);
-            // add to the asset map
-            asset = result;
-            this.assetMap[assetId] = asset;
-        }
+        const asset = await this.assetMap.fetchAsset(assetId);
+        const displayAmount = await this.assetMap.getDisplayValue(assetId, innerTransaction.amount);
         const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);
         const data = {
-            quantity: innerTransaction.amount / Math.pow(10, asset.decimals),
+            quantity: displayAmount,
             timestamp: new Date(blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
             currencyName: asset.name,
             id: transaction.id,
             note: transaction.note,
             action: innerTransaction.receiver === accountAddress ? "Buy" : "Sell"
         };
+        if (transaction.sender === accountAddress) {
+            const accountName = await this.knownAddresses.getNameByAddress(innerTransaction.receiver);
+            console.log("You transferred %d %s to the %s account", displayAmount, asset.name, accountName);
+        } else {
+            const accountName = await this.knownAddresses.getNameByAddress(transaction.sender);
+            console.log("You received %d %s from the %s account", displayAmount, asset.name, accountName); 
+        }
+
         this.fileWriter.writeTransaction(data);
     }
 }
@@ -121,8 +151,7 @@ export class TransactionStagingFileWriter {
         this.assetMap = data.AssetMap;
         this.accountAddress = accountAddress;
         this.indexerApi = indexerApi;
-        this.filename = `staging_transactions_${data.newGuid()}.csv`;
-        this.fileWriter = new RawTransactionImporter(this.filename);
+        this.fileWriter = new RawTransactionImporter(`staging_transactions.csv`);
     }
     async importTransaction (transaction) {
         const transactionType = transaction['tx-type'];

@@ -1,7 +1,14 @@
 import * as indexerApi from "./api/indexer.js";
 import { TransactionAnalyzer } from "./transactions.js";
 import { TransactionFileWriter } from "./data/file-writer.js";
+import {stdout} from "process";
+import fs from "fs";
 
+const logFile = fs.createWriteStream('./2021_taxable_events.log', {
+    encoding: 'ascii',
+    flags: 'w'
+});
+stdout.pipe(logFile)
 
 (async function main(args) {
     const accountAddress =  args[2];
@@ -24,23 +31,27 @@ import { TransactionFileWriter } from "./data/file-writer.js";
     const transactionAnalyzer = new TransactionAnalyzer(indexerApi, transactionFileWriter);
     transactionAnalyzer.init();
 
-    while (options.nextToken != null) {
-        const transactions = transactionData.transactions || [];
+    //while (options.nextToken != null) {
+    const transactions = transactionData.transactions || [];
 
-        transactions.forEach(async (transaction) => {
-            await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
-         });
-        
-        transactionData = await indexerApi.getTransactionList(options);
-        options.nextToken = transactionData['next-token'];
-
-        if (options.nextToken) {
-            console.log("Got a new page of %d results w/ another token %s",
-            transactionData.transactions.length,
-            options.nextToken);
-        }
+    for (const transaction of transactions) {
+        await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
     }
+    // transactions.forEach(async transaction => { 
+    //     await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
+    // });
+    
+    transactionData = await indexerApi.getTransactionList(options);
+    options.nextToken = transactionData['next-token'];
+
+    if (options.nextToken) {
+        console.log("Got a new page of %d results w/ another token %s",
+        transactionData.transactions.length,
+        options.nextToken);
+    }
+    //}
 
     transactionFileWriter.close();
     transactionFileWriter.writeReport();
+    logFile.close();
 })(process.argv);
