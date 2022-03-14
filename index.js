@@ -21,7 +21,7 @@ const { combine, timestamp, label, printf, splat } = format;
             splat(),
             myFormat
         ),
-        transports: [new transports.File({ filename: 'hyvan-combined.log' }), new transports.Console()]
+        transports: [new transports.File({ filename: 'combined.log' }), new transports.Console()]
     });
     const options = {
         afterDate: "2021-01-01T00:00:00Z",

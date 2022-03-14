@@ -39,10 +39,8 @@ const KnownApplications = {
     },
     async getNameById(appId) {
         let app = this[appId];
-        if (!app && appId) {
+        if (!app) {
             //const appInfo = await indexer.getApplicationInfo(appId);
-            //TODO: make this smarter and associate addresses to apps? I wouldn't have to
-            // comb through logs this way.
             app ={ name: 'Unknown App ' + appId };
             this[appId] = app;
         }
