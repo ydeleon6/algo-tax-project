@@ -7,9 +7,6 @@ const KnownApplications = {
     '233725850': {
         name: 'Yieldly Staking Contract',
     },
-    '233725850': {
-        name: 'Yieldly Staking Contract',
-    },
     '233725844': {
         name: 'Yieldly NLL Contract',
     },
@@ -25,36 +22,61 @@ const KnownApplications = {
     '447336112': {
         name: 'YLDLY x CHOICE Staking Pools Contract'
     },
+    '464365150': {
+        name: 'CHOICE x CHOICE Staking Pools Contract'
+    },
     '511597182': {
         name: 'YLDLY x AKITA Staking Pools Contract'
     },
     '593289960': {
         name: 'YLDY x TREES Staking Pools Contract'
     },
+    '350338509': {
+        name: 'Tinyman??'
+    },
     async getNameById(appId) {
         let app = this[appId];
         if (!app && appId) {
             const appInfo = await indexer.getApplicationInfo(appId);
-            //console.log(appInfo);
-            this[appId] = { name: 'Unknown App ' + appId }
+            //TODO: make this smarter and associate addresses? I wouldn't have to
+            // comb through logs this way.
+            this[appId] = { name: 'Unknown App ' + appId };
             app = this[appId];
         }
         return app.name;
     }
 };
 
-const KnownAddresses = {
+const KnownAccounts = {
     'FMBXOFAQCSAD4UWU4Q7IX5AV4FRV6AKURJQYGXLW3CTPTQ7XBX6MALMSPY': {
         name: 'Yieldly Escrow'
     },
+    'VUY44SYOFFJE3ZIDEMA6PT34J3FAZUAE6VVTOTUJ5LZ343V6WZ3ZJQTCD4': {
+        name: 'YLDY x OPUL Staking Pool Escrow'
+    },
+    'GLHS7QEDDSQVHNTOVFELY3ISMB44TL7I7RQ36BNFW7KMJEZA4SQUFJHV6E': {
+        name: 'CHOICE x CHOICE Staking Pool Escrow'
+    },
+    'YCHXDWES2VJDEKAHWPC344N6WK3FQOZL5VIZYMCDHDIUTTUZPC4IA6DEZY': {
+        name: 'YLDY x CHOICE Staking Pool Escrow'
+    },
+    'JI2ZFDHBL7TE3CSTIRCJE7LUAR5XSQYQQENCYCMMTQJCIIVXTZLSMS7UMQ': {
+        name: 'YLDY x OPUL Tinyman Liqudity Pool'
+    },
+    '4ADBL4JU6XRWT2DLWMNTQ7V7GLQUVVUQJ5NDWUNGXAJPRW3JGZ7HJUSC4I': {
+        name: 'ALGO x CHOICE Tinyman Liqudity Pool'
+    },
     'W3RTY34WM3WNAPESJX3NCHX6KP32O6V2RI5WNB3RBKKZE3RQAXYTLNUWCI': {
-        name: 'Tinyman ALGO x USDC Liqudity Pool'
+        name: 'ALGO x USDC Tinyman Liqudity Pool'
+    },
+    'UXVAPU4KERSMNUILDVZUKKF4KMWQ7RFSSYPXYSEGSYNYILC4FEHISKRBNM': {
+        name: 'Coinbase Pro'
     },
     async getNameByAddress(address) {
-        const place = this[address];
+        let place = this[address];
         if (!place) {
-            this[address] = 'Unknown address ' + address;
-            return this[address];
+            this[address] = { name: 'Unknown address ' + address };
+            place = this[address];
         }
         return place.name;
     }
@@ -69,6 +91,7 @@ const AssetMap =   {
     '297995609': { name: 'Choice Coin', id: 297995609, decimals: 2 },
     '444108880': { name: 'CryptoTrees', id: 444108880, decimals: 0 },
     '384303832': { name: 'Akita Inu', id: 384303832, decimals: 0 },
+
     /**
      * Find the asset in the map and cache it if it's not there.
      * @param {number} assetId The asset id.
@@ -108,7 +131,7 @@ function uuidv4() {
 
 export default {
     KnownApplications,
-    KnownAddresses,
+    KnownAccounts: KnownAccounts,
     AssetMap,
     newGuid: uuidv4
 };

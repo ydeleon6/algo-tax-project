@@ -32,8 +32,6 @@ class CsvWriter {
         }
         this.resultFilePath = fullFileName;
         this.fileStream = fs.createWriteStream(this.resultFilePath, "utf-8");
-        const logPath = path.join(this.rootDir, fileName.replace('csv','log'));
-        this.logStream = fs.createWriteStream(logPath, 'ascii');
     }
 
     writeCsvRow(data){
@@ -44,7 +42,6 @@ class CsvWriter {
 
     close() {
         this.fileStream.close();
-        this.logStream.close();
     }
 }
 
