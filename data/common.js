@@ -32,16 +32,19 @@ const KnownApplications = {
         name: 'YLDY x TREES Staking Pools Contract'
     },
     '350338509': {
-        name: 'Tinyman??'
+        name: 'Tinyman'
+    },
+    '465818260': {
+        name: 'Algofi'
     },
     async getNameById(appId) {
         let app = this[appId];
         if (!app && appId) {
-            const appInfo = await indexer.getApplicationInfo(appId);
-            //TODO: make this smarter and associate addresses? I wouldn't have to
+            //const appInfo = await indexer.getApplicationInfo(appId);
+            //TODO: make this smarter and associate addresses to apps? I wouldn't have to
             // comb through logs this way.
-            this[appId] = { name: 'Unknown App ' + appId };
-            app = this[appId];
+            app ={ name: 'Unknown App ' + appId };
+            this[appId] = app;
         }
         return app.name;
     }
@@ -69,8 +72,17 @@ const KnownAccounts = {
     'W3RTY34WM3WNAPESJX3NCHX6KP32O6V2RI5WNB3RBKKZE3RQAXYTLNUWCI': {
         name: 'ALGO x USDC Tinyman Liqudity Pool'
     },
+    'JA3HJ7OXYKTJNZFVVPHP7RSWPCUROXX3TL6L7YEBVMKK73QEDIVZSCLOGQ': {
+        name: 'ALGO x OPUL Tinyman Liquidity Pool'
+    },
     'UXVAPU4KERSMNUILDVZUKKF4KMWQ7RFSSYPXYSEGSYNYILC4FEHISKRBNM': {
         name: 'Coinbase Pro'
+    },
+    'FRUG74S7Q3T5Y37GJAFQEFJCXXZ6K2PH4DRM67NL4HWZS5R4EPG6Z4H7KM': {
+        name: 'USDC x CHOICE Tinyman Liquidity Pool'
+    },
+    'RC7JNZWSFBRIEA5TXM24NW5ZRZOA3GZVEO562A54LPQI2ROOKEFIT3LRTA': {
+        name: 'USDC x YLDY Tinyman Liquidity Pool'
     },
     async getNameByAddress(address) {
         let place = this[address];

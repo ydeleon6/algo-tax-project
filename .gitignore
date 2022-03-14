@@ -4,4 +4,4 @@
 *.csv
 report.json
 transactions.db
-combined.log
+*.log

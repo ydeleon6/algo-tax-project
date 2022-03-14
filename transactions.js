@@ -1,7 +1,7 @@
 import winston from "winston";
 import * as indexerApi from "./api/indexer.js";
 import data from "./data/common.js";
-import { RawTransactionImporter, TransactionFileWriter } from "./data/file-writer.js";
+import { TransactionFileWriter } from "./data/file-writer.js";
 
 
 export class TransactionAnalyzer {
@@ -72,7 +72,6 @@ export class TransactionAnalyzer {
         } else {
             this.logger.info("The '%s' application called you.", appName);
         }
-        this.fileWriter.skip(transaction, "Application");
     }
 
     /**
