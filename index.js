@@ -36,19 +36,20 @@ const { combine, timestamp, label, printf, splat } = format;
 
     const transactionFileWriter = new TransactionFileWriter("2021_taxable_events.csv");
     const transactionAnalyzer = new TransactionAnalyzer(indexerApi, transactionFileWriter, logger);
-    transactionAnalyzer.init();
+    await transactionAnalyzer.init();
 
+    // save all transactions
     while (options.nextToken) {
         const transactions = transactionData.transactions || [];
-
-        for (const transaction of transactions) {
-            await transactionAnalyzer.analyzeTransaction(transaction, accountAddress);
-        }
-    
+        await transactionAnalyzer.save(transactions);    
         transactionData = await indexerApi.getTransactionList(options);
         options.nextToken = transactionData['next-token'];
     }
 
-    transactionFileWriter.close();
+    const transactions = await transactionAnalyzer.database.getCursor('transactions');
+    const resultCount = await transactions.count();
+    logger.info("Retrieved %d transactions from the db.", resultCount);
+
+    transactionAnalyzer.close();
     transactionFileWriter.writeReport();
 })(process.argv);

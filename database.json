@@ -1,0 +1,101 @@
+{
+    "applications": [{
+        "id": 233725850,
+        "name": "Yieldly Staking Contract"
+    },
+    {
+        "id": 233725844,
+        "name": "Yieldly NLL Contract"
+    },
+    {
+        "id": 233725843,
+        "name": "Yieldly Opting Contract"
+    },
+    {
+        "id": 233725848,
+        "name": "Yieldly Proxy Contract"
+    },
+    {
+        "id": 348079765,
+        "name": "YLDLY x OPUL Staking Pools Contract"
+    },
+    {
+        "id": 447336112,
+        "name": "YLDLY x CHOICE Staking Pools Contract"
+    },
+    {
+        "id": 464365150,
+        "name": "CHOICE x CHOICE Staking Pools Contract"
+    },
+    {
+        "id": 511597182,
+        "name": "YLDLY x AKITA Staking Pools Contract"
+    },
+    {
+        "id": 593289960,
+        "name": "YLDY x TREES Staking Pools Contract"
+    },
+    {
+        "id": 350338509,
+        "name": "Tinyman"
+    },
+    {
+        "id": 465818260,
+        "name": "Algofi"
+    }],
+    "accounts": [
+        {
+            "name": "Yieldly Escrow",
+            "address": "FMBXOFAQCSAD4UWU4Q7IX5AV4FRV6AKURJQYGXLW3CTPTQ7XBX6MALMSPY"
+        },
+        {
+            "name": "YLDY x OPUL Staking Pool Escrow",
+            "address": "VUY44SYOFFJE3ZIDEMA6PT34J3FAZUAE6VVTOTUJ5LZ343V6WZ3ZJQTCD4"
+        },
+        {
+            "name": "CHOICE x CHOICE Staking Pool Escrow",
+            "address": "GLHS7QEDDSQVHNTOVFELY3ISMB44TL7I7RQ36BNFW7KMJEZA4SQUFJHV6E"
+        },
+        {
+            "name": "YLDY x CHOICE Staking Pool Escrow",
+            "address": "YCHXDWES2VJDEKAHWPC344N6WK3FQOZL5VIZYMCDHDIUTTUZPC4IA6DEZY"
+        },
+        {
+            "name": "YLDY x OPUL Tinyman Liqudity Pool",
+            "address": "JI2ZFDHBL7TE3CSTIRCJE7LUAR5XSQYQQENCYCMMTQJCIIVXTZLSMS7UMQ"
+        },
+        {
+            "name": "ALGO x CHOICE Tinyman Liqudity Pool",
+            "address": "4ADBL4JU6XRWT2DLWMNTQ7V7GLQUVVUQJ5NDWUNGXAJPRW3JGZ7HJUSC4I"
+        },
+        {
+            "name": "ALGO x USDC Tinyman Liqudity Pool",
+            "address": "W3RTY34WM3WNAPESJX3NCHX6KP32O6V2RI5WNB3RBKKZE3RQAXYTLNUWCI"
+        },
+        {
+            "name": "ALGO x OPUL Tinyman Liquidity Pool",
+            "address": "JA3HJ7OXYKTJNZFVVPHP7RSWPCUROXX3TL6L7YEBVMKK73QEDIVZSCLOGQ"
+        },
+        {
+            "name": "Coinbase Pro",
+            "address": "UXVAPU4KERSMNUILDVZUKKF4KMWQ7RFSSYPXYSEGSYNYILC4FEHISKRBNM"
+        },
+        {
+            "name": "USDC x CHOICE Tinyman Liquidity Pool",
+            "address": "FRUG74S7Q3T5Y37GJAFQEFJCXXZ6K2PH4DRM67NL4HWZS5R4EPG6Z4H7KM"
+        },
+        {
+            "name": "USDC x YLDY Tinyman Liquidity Pool",
+            "address": "RC7JNZWSFBRIEA5TXM24NW5ZRZOA3GZVEO562A54LPQI2ROOKEFIT3LRTA"
+        }
+    ],
+    "assets": [
+        { "name": "Algorand", "id": 0, "decimals": 6 },
+        { "name": "USDC", "id": 31566704, "decimals": 6 },
+        { "name": "Yieldly", "id": 226701642, "decimals": 6 },
+        { "name": "Opulous", "id": 287867876, "decimals": 10 },
+        { "name": "Choice Coin", "id": 297995609, "decimals": 2 },
+        { "name": "CryptoTrees", "id": 444108880, "decimals": 0 },
+        { "name": "Akita Inu", "id": 384303832, "decimals": 0 }
+    ]
+}
