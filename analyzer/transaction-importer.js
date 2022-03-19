@@ -23,7 +23,7 @@ export class TransactionImporter{
                 appId: innerTransaction['application-id'] || '',
                 asset: innerTransaction['asset-id'] || '',
                 amount: innerTransaction.amount || '',
-                timestamp: new Date(blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
+                timestamp: (blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
                 id: transaction.id,
                 group: transaction.group,
                 note: transaction.note,
@@ -59,7 +59,7 @@ export async function importTransactions(database, accountAddress) {
     const options = {
         afterDate: "2021-01-01T00:00:00Z",
         beforeDate: "2022-01-01T00:00:00Z",
-        size: 100,
+        size: 50,
         nextToken: null,
         address: accountAddress
     };

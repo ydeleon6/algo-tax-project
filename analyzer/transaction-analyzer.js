@@ -41,6 +41,8 @@ export class TransactionAnalyzer {
      * @param {String} accountAddress The account address to compare.
      */
     async analyzeTransactions(transactions, accountAddress) {
+        const transactionDate = new Date(transactions[0].timestamp);
+        console.log("%s %s", transactionDate.toLocaleDateString(), transactionDate.toLocaleTimeString());
         for (const transaction of transactions) {
             switch (transaction.type) {
                 case 'appl':
@@ -53,7 +55,7 @@ export class TransactionAnalyzer {
                     await this.handlePaymentTransaction(transaction, accountAddress);
                     break;
                 default:
-                    logger.error("Cannot handle transaction type of %s", transactionType);
+                    logger.error("Cannot handle transaction type of %s", transaction.type);
                     break;
             }
         }
@@ -92,9 +94,9 @@ export class TransactionAnalyzer {
             const displayAmount = await this.assetMap.getDisplayValue(0, paymentAmount);
 
             if (transaction.sender === accountAddress) {
-                const receiverName = await this.knownAddresses.getNameByAddress(paymentTransaction.receiver);
+                const receiverName = await this.knownAddresses.getNameByAddress(transaction.receiver);
                 logger.info("You paid %d Algos to the '%s' account.", displayAmount, receiverName);
-            } else if (paymentTransaction.receiver === accountAddress) {
+            } else if (transaction.receiver === accountAddress) {
                 const senderName = await this.knownAddresses.getNameByAddress(transaction.sender);
                 logger.info("You were paid %d Algos from the '%s' account.", displayAmount, senderName);
             }
@@ -108,7 +110,7 @@ export class TransactionAnalyzer {
      * @param {String} accountAddress The account address to compare.
      */
     async handleAssetTransferTransaction(transaction, accountAddress) {
-        const asset = await this.assetMap.fetchAsset(transaction.assetId);
+        const asset = await this.assetMap.fetchAsset(transaction.asset);
         const displayAmount = await this.assetMap.getDisplayValue(asset.id, transaction.amount);
 
         if (transaction.sender === transaction.receiver && displayAmount === 0) {
@@ -116,9 +118,11 @@ export class TransactionAnalyzer {
         } else if (transaction.sender === accountAddress) {
             const accountName = await this.knownAddresses.getNameByAddress(transaction.receiver);
             logger.info("You transferred %d %s to the '%s' account", displayAmount, asset.name, accountName);
-        } else {
+        } else if (transaction.receiver === accountAddress) {
             const accountName = await this.knownAddresses.getNameByAddress(transaction.sender);
             logger.info("You received %d %s from the '%s' account", displayAmount, asset.name, accountName); 
+        } else {
+            logger.info("What happened here? Sender %s - Receiver %s", transaction.sender, transaction.receiver)
         }
     }
 
@@ -136,7 +140,7 @@ export async function analyzeTransactions(database, accountAddress) {
     // get all grouped transactions.
     const transactionCollection = database.database.collection('transactions');
     const groupIds = await transactionCollection.distinct('group');
-    console.log(groupIds);
+
     for (let i = 0; i < groupIds.length; i++) {
         const groupId = groupIds[i];
         if (groupId == null) {
