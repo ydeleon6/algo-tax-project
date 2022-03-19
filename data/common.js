@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import * as indexer from "../api/indexer.js";
+import * as indexer from "./indexer.js";
 import mongodb from "mongodb";
 import fs from "fs/promises";
 const { MongoClient } = mongodb;
@@ -34,7 +34,7 @@ class Database {
         if (resultCount === 0) {
             return [];
         }
-        return cursor.toArray();
+        return await cursor.toArray();
     }
 
     async save (collectionName, documents) {
@@ -148,30 +148,21 @@ function uuidv4() {
     return crypto.randomUUID();
 }
 
-async function loadDbSchema() {
+async function loadDbSchema(db) {
     const databaseJson = await fs.readFile("database.json", { encoding: 'utf-8' });
     const schema = JSON.parse(databaseJson);
-    const db = new Database('algorand');
     try {
-        await db.open();
-        const assets = await db.getCollection('assets');
-        if (assets.length === 0) {
-            await db.database.collection('assets').insertMany(schema.assets);
-        }
+        const assets = await db.collection('assets');
+        await assets.insertMany(schema.assets);
 
-        const accounts = await db.getCollection('accounts');
-        if (accounts.length === 0) {
-            await db.database.collection('accounts').insertMany(schema.accounts);
-        }
+        const accounts = await db.collection('accounts');
+        await accounts.insertMany(schema.accounts);
 
-        const apps = await db.getCollection('applications');
-        if (apps.length === 0) {
-            await db.database.collection('applications').insertMany(schema.applications);
-        }
-    } catch(e) {
+        const apps = await db.collection('applications');
+        await apps.insertMany(schema.applications);
+    } catch (e) {
         console.error(e);
-    } finally {
-        await db.close();
+        throw e;
     }
 }
 

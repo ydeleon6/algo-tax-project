@@ -1,55 +1,21 @@
-import * as indexerApi from "./api/indexer.js";
-import { TransactionAnalyzer } from "./transactions.js";
-import { TransactionFileWriter } from "./data/file-writer.js";
-import { createLogger, format, transports } from 'winston';
-const { combine, timestamp, label, printf, splat } = format;
-
+import { analyzeTransactions } from "./analyzer/transaction-analyzer.js";
+import { importTransactions } from "./analyzer/transaction-importer.js";
+import data from "./data/common.js";
 
 (async function main(args) {
-    const accountAddress =  args[2];
-    const account = await indexerApi.getAccountInformation(accountAddress);
-    if (!account) {
-        throw new Error("Unknown account.");
-    }
-    const myFormat = printf(({ level, message, label, timestamp }) => {
-        return `${timestamp} [${label}] ${level}: ${message}`;
-    });    
-    const logger = createLogger({
-        format: combine(
-            label({ label: 'TransactionAnalyzer'}),
-            timestamp({ format: 'MM/DD/YYYY hh:mm:ss'}),
-            splat(),
-            myFormat
-        ),
-        transports: [new transports.File({ filename: 'combined.log' }), new transports.Console()]
-    });
-    const options = {
-        afterDate: "2021-01-01T00:00:00Z",
-        beforeDate: "2022-01-01T00:00:00Z",
-        size: 100,
-        nextToken: null,
-        address: accountAddress
-    };
+    const accountAddress = args[2];
+    const database = new data.Database('algorand');
+    await database.open();
 
-    let transactionData = await indexerApi.getTransactionList(options);
-    options.nextToken = transactionData['next-token'];
+    await data.applications.loadCache(database);
+    await data.accounts.loadCache(database);
+    await data.assets.loadCache(database);
 
-    const transactionFileWriter = new TransactionFileWriter("2021_taxable_events.csv");
-    const transactionAnalyzer = new TransactionAnalyzer(indexerApi, transactionFileWriter, logger);
-    await transactionAnalyzer.init();
+    // 1) import all transactions to a database.
+    // await importTransactions(database, accountAddress);
 
-    // save all transactions
-    while (options.nextToken) {
-        const transactions = transactionData.transactions || [];
-        await transactionAnalyzer.save(transactions);    
-        transactionData = await indexerApi.getTransactionList(options);
-        options.nextToken = transactionData['next-token'];
-    }
+    // 2) analyze them
+    await analyzeTransactions(database, accountAddress);
 
-    const transactions = await transactionAnalyzer.database.getCursor('transactions');
-    const resultCount = await transactions.count();
-    logger.info("Retrieved %d transactions from the db.", resultCount);
-
-    transactionAnalyzer.close();
-    transactionFileWriter.writeReport();
-})(process.argv);
+    await database.close();
+})(process.argv); 

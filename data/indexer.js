@@ -1,21 +1,23 @@
 import fetch from "node-fetch";
-import { HttpVerb } from "./common.js";
 
+export const HttpVerb = Object.freeze({
+    GET: 'GET',
+    POST: 'POST',
+    PUT: 'PUT',
+    DELETE: 'DELETE'
+});
 const baseUrl = new URL("https://algoindexer.algoexplorerapi.io");
 
-async function callAlgorandIndexerApi(relativeUrl, method, customHeaders = null) {
-    const requestInfo = {
-        method: method,     // The type of HTTP request. The types are GET, POST, PUT, DELETE
-        cache: 'no-cache', // we tell the server not to cache our request.
-    };
-
+async function callAlgorandIndexerApi(relativeUrl, method, customHeaders = {}) {
     let finalHeaders = {
         'Content-Type': 'application/json' // we tell the server to send us text as JSON.
     }
-    if (customHeaders) {
-        // Copy our finalHeaders 'over' the customHeaders. We override content-type right now.
-        finalHeaders = Object.assign(customHeaders, finalHeaders);
-    }
+    const requestInfo = {
+        method: method,     // The type of HTTP request. The types are GET, POST, PUT, DELETE
+        cache: 'no-cache', // we tell the server not to cache our request.
+        headers:  Object.assign(customHeaders, finalHeaders)
+    };
+    requestInfo.headers = finalHeaders;
     const fullUrl = new URL(relativeUrl, baseUrl);
     const response = await fetch(fullUrl, requestInfo);
     const result = await response.json();

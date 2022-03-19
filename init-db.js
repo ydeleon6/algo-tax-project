@@ -1,6 +1,8 @@
 import data from "./data/common.js";
-import fs from "fs/promises";
 
 (async function run(args) {
-
+    const connection = new data.Database('algorand');
+    await connection.open();
+    await data.loadDbSchema(connection.database);
+    await connection.close();
 })(process.argv);
