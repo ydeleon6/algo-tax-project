@@ -3,7 +3,7 @@ import { createNewLogger } from "../logging.js";
 
 const logger = createNewLogger("transaction-importer");
 
-export class TransactionImporter{
+export class TransactionImporter {
     /**
      * Import a batch of transactions to the database.
      * @param {Database} database 
@@ -17,19 +17,19 @@ export class TransactionImporter{
     async save(transactions) {
         const data = await Promise.all(transactions.map(async transaction => {
             const innerTransaction = this._getInnerTransaction(transaction);
-            const blockInfo = await this.indexerApi.getBlockDetails(transaction['confirmed-round']);
             return {
                 type: transaction['tx-type'],
-                appId: innerTransaction['application-id'] || '',
-                asset: innerTransaction['asset-id'] || '',
-                amount: innerTransaction.amount || '',
-                timestamp: (blockInfo.timestamp * 1000), // blockInfo.timestamp stores value in seconds.
+                appId: innerTransaction['application-id'],
+                asset: innerTransaction['asset-id'],
+                amount: innerTransaction.amount,
+                timestamp: (transaction['round-time'] * 1000), // blockInfo.timestamp stores value in seconds.
                 id: transaction.id,
                 group: transaction.group,
                 note: transaction.note,
                 fee: transaction.fee,
-                receiver: innerTransaction.receiver || '',
-                sender: transaction.sender
+                receiver: innerTransaction.receiver,
+                sender: transaction.sender,
+                innerTransaction: innerTransaction
             };
         }));
 
@@ -64,7 +64,7 @@ export async function importTransactions(database, accountAddress) {
         address: accountAddress
     };
 
-    let transactionData = await indexerApi.getTransactionList(options);
+    let transactionData = await indexerApi.getTransactionList(accountAddress, options);
     options.nextToken = transactionData['next-token'];
 
     const importer = new TransactionImporter(database, indexerApi);
@@ -72,8 +72,8 @@ export async function importTransactions(database, accountAddress) {
     // save all transactions
     while (options.nextToken) {
         const transactions = transactionData.transactions || [];
-        await importer.save(transactions);  
-        transactionData = await indexerApi.getTransactionList(options);
+        await importer.save(transactions);
+        transactionData = await indexerApi.getTransactionList(accountAddress, options);
         options.nextToken = transactionData['next-token'];
     }
 

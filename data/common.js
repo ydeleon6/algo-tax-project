@@ -74,14 +74,14 @@ const applications = {
         });
     },
     cache: {},
-    async getNameById(appId) {
+    getApplication(appId) {
         let app = this.cache[appId];
         if (!app) {
             //const appInfo = await indexer.getApplicationInfo(appId);
-            app ={ name: 'Unknown App ' + appId };
+            app ={ id: appId, name: 'Unknown App ' + appId, intent: "Unknown" };
             this.cache[appId] = app;
         }
-        return app.name;
+        return app;
     }
 };
 
@@ -93,13 +93,13 @@ const accounts = {
         });
     },
     cache: {},
-    async getNameByAddress(address) {
+    getAccount(address) {
         let place = this.cache[address];
         if (!place) {
-            this.cache[address] = { name: 'Unknown address ' + address };
+            this.cache[address] = { address: address, name: 'Unknown address ' + address, intent: "Unknown" };
             place = this.cache[address];
         }
-        return place.name;
+        return place;
     }
 }
 

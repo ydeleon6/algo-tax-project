@@ -1,8 +1,22 @@
 import data from "../data/common.js";
+import * as indexerApi from "../data/indexer.js";
 import { createNewLogger } from "../logging.js";
 import { TransactionFileWriter } from "../data/file-writer.js";
 
 const logger = createNewLogger("transaction-analyzer");
+
+const STAKING_POOL ="StakingPool";
+const LIQUIDITY="LiquidityPool";
+const DEFI_SWAP="DefiSwap";
+const WALLET="Wallet";
+const ESCROW="Escrow";
+const UNKNOWN = "Unknown";
+const NONE = -1;
+const LEAVING = 0;
+const ENTERING = 1
+const CurrencyDirection = {
+    NONE, LEAVING, ENTERING
+};
 
 class Analysis {
     /**
@@ -25,7 +39,7 @@ export class TransactionAnalyzer {
      * Create a new transaction analyzer that looks through your transactions
      * and makes notes of taxable events.
      * @param {TransactionFileWriter} fileWriter The transaction file writer
-     * @param {Database} logger The logger.
+     * @param {Database} database The database.
      */
     constructor(fileWriter, database) {
         this.fileWriter = fileWriter;
@@ -40,25 +54,49 @@ export class TransactionAnalyzer {
      * @param {object[]} transactions The transaction objects.
      * @param {String} accountAddress The account address to compare.
      */
-    async analyzeTransactions(transactions, accountAddress) {
-        const transactionDate = new Date(transactions[0].timestamp);
-        console.log("%s %s", transactionDate.toLocaleDateString(), transactionDate.toLocaleTimeString());
-        for (const transaction of transactions) {
-            switch (transaction.type) {
-                case 'appl':
-                    await this.handleApplicationCall(transaction, accountAddress);
-                    break;
-                case 'axfer':
-                    await this.handleAssetTransferTransaction(transaction, accountAddress);
-                    break;
-                case 'pay':
-                    await this.handlePaymentTransaction(transaction, accountAddress);
-                    break;
-                default:
-                    logger.error("Cannot handle transaction type of %s", transaction.type);
-                    break;
+    async analyzeTransactions(transactionGroup, accountAddress) {
+        const appCalls = transactionGroup['appl'] || [];
+        const applicationInfo = await this.handleApplicationCalls(appCalls);
+        
+        // skip payments for now.
+        const assetTransfers = transactionGroup['axfer'] || [];
+        const axfers = await this.handleAssetTransferTransactions(assetTransfers, accountAddress);
+        let fullMessage;
+
+        if(applicationInfo.app === "Yieldly") {
+            // you can't swap in yieldly so you only have one incoming or one outgoing.
+            // you can only stake or claim from yieldly pools.
+            if (axfers.incomingTransfer) {
+                fullMessage = `Claimed ${axfers.incomingTransfer.amount} ${axfers.incomingTransfer.asset}`;
+            } else if (axfers.outgoingTransfer) {
+                fullMessage = `Staked ${axfers.outgoingTransfer.amount} ${axfers.outgoingTransfer.asset}`;
+            } else if (axfers.outgoingTransfer && axfers.incomingTransfer){
+                fullMessage = "Not sure how I have two things from Yieldly?";
+            } else {
+                fullMessage = JSON.stringify(axfers);
             }
         }
+        else if (applicationInfo.app === "Tinyman") {
+            if (axfers.incomingTransfer && axfers.outgoingTransfer) {
+                fullMessage = `Swapped ${axfers.outgoingTransfer.amount} ${axfers.outgoingTransfer.asset} for`;
+                fullMessage += ` ${axfers.incomingTransfer.amount} ${axfers.incomingTransfer.asset}`;
+            }
+            else if (axfers.incomingTransfer) {
+                fullMessage = `Claimed ${axfers.incomingTransfer.amount} ${axfers.incomingTransfer.asset}`;
+            } else {
+                fullMessage = "UNKNOWN: When would I send something to Tinyman and not get anything back?"
+            }
+        } else {
+            fullMessage = "Unknown: " + JSON.stringify(applicationInfo);
+        }
+        const timestampStr = this.formatTimestamp(transactionGroup.timestamp);
+        
+        return `[${timestampStr}] - ${fullMessage}`
+    }
+
+    formatTimestamp(timestampMs) {
+        const date = new Date(timestampMs);
+        return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
     }
 
     /**
@@ -68,14 +106,49 @@ export class TransactionAnalyzer {
      * @param {object} transaction The transaction
      * @param {String} accountAddress The account address.
      */
-    async handleApplicationCall(transaction, accountAddress) {
-        const fee = await this.assetMap.getDisplayValue(0, transaction.fee);
-        const appName = await this.knownApplications.getNameById(transaction.appId);
+    async handleApplicationCalls(transactions) {
+        let fees = 0;
+        let intent = '';
+        let appName = '';
+        let apps = [];
+        
+        for (const txn of transactions) {
+            fees += txn.fee;
+            // who is it?
+            // apparently we can find out the intent for tinyman (I think) by looking at the app params.
+            // the first one is a base64 encoded string of the action like "swap", "pool", etc...
+            const app = this.knownApplications.getApplication(txn.appId);
+            if (app.tag === 'Yieldly') {
+                appName = 'Yieldly';
+                intent = STAKING_POOL;
+            } else if (app.tag === 'Tinyman') {
+                appName = app.name;
+                const appCallArgs = txn.innerTransaction['application-args']; // array
+                if (appCallArgs.length > 0) {
+                    if (typeof appCallArgs[0] === 'string') {
+                        let action = Buffer.from(appCallArgs[0], 'base64').toString();
+                        if (action === 'swap') {
+                            intent = DEFI_SWAP;
+                        } else if (action === "redeem") {
+                            intent = "Redeem";
+                        } else {
+                            intent = action;
+                            console.log(intent);
+                        }
+                    }
+                }
+            } else {
+                appName = app.name;
+            }
+            apps.push(app);
+        };
 
-        if (transaction.sender === accountAddress) {
-            logger.info("You called the '%s' application with a %d Algo fee.", appName, fee);
-        } else {
-            logger.info("The '%s' application called you.", appName);
+        const fee = await this.assetMap.getDisplayValue(0, fees);
+
+        return {
+            fee: fee,
+            app: appName,
+            intent: intent || UNKNOWN
         }
     }
 
@@ -88,19 +161,33 @@ export class TransactionAnalyzer {
      */
     async handlePaymentTransaction(transaction, accountAddress) {
         const paymentAmount = transaction.amount;
+        // Log who we sent/received a payment from.
+        let knownAccount;
+        let receiverName = "You";
+        let senderName = "You";
+        let paymentDirection = CurrencyDirection.NONE;
+        const displayAmount = await this.assetMap.getDisplayValue(0, paymentAmount);
 
-        if (paymentAmount) {
-            // Log who we sent/received a payment from.
-            const displayAmount = await this.assetMap.getDisplayValue(0, paymentAmount);
-
-            if (transaction.sender === accountAddress) {
-                const receiverName = await this.knownAddresses.getNameByAddress(transaction.receiver);
-                logger.info("You paid %d Algos to the '%s' account.", displayAmount, receiverName);
-            } else if (transaction.receiver === accountAddress) {
-                const senderName = await this.knownAddresses.getNameByAddress(transaction.sender);
-                logger.info("You were paid %d Algos from the '%s' account.", displayAmount, senderName);
-            }
+        if (transaction.sender === accountAddress) {
+            paymentDirection = CurrencyDirection.LEAVING;
+            knownAccount = await this.knownAddresses.getAccount(transaction.receiver);
+            receiverName = knownAccount.name;
+            logger.info("You paid %d Algos to the '%s' account.", displayAmount, receiverName);
+        } else if (transaction.receiver === accountAddress) {
+            paymentDirection = CurrencyDirection.ENTERING;
+            knownAccount = await this.knownAddresses.getAccount(transaction.sender);
+            senderName = knownAccount.name;
+            logger.info("You were paid %d Algos from the '%s' account.", displayAmount, senderName);
         }
+
+        return {
+            asset: "Algorand",
+            amount: displayAmount,
+            receiverName,
+            senderName,
+            intent: knownAccount.intent,
+            currencyDirection: paymentDirection
+        };
     }
 
     /**
@@ -109,25 +196,51 @@ export class TransactionAnalyzer {
      * @param {object} transaction The transaction object.
      * @param {String} accountAddress The account address to compare.
      */
-    async handleAssetTransferTransaction(transaction, accountAddress) {
-        const asset = await this.assetMap.fetchAsset(transaction.asset);
-        const displayAmount = await this.assetMap.getDisplayValue(asset.id, transaction.amount);
+    async handleAssetTransferTransactions(transactions, accountAddress) {
+        let outgoingTransfer;
+        let incomingTransfer;
+        let isOptIn;
 
-        if (transaction.sender === transaction.receiver && displayAmount === 0) {
-            logger.info("User opted-into the '%s' ASA.", asset.name);
-        } else if (transaction.sender === accountAddress) {
-            const accountName = await this.knownAddresses.getNameByAddress(transaction.receiver);
-            logger.info("You transferred %d %s to the '%s' account", displayAmount, asset.name, accountName);
-        } else if (transaction.receiver === accountAddress) {
-            const accountName = await this.knownAddresses.getNameByAddress(transaction.sender);
-            logger.info("You received %d %s from the '%s' account", displayAmount, asset.name, accountName); 
-        } else {
-            logger.info("What happened here? Sender %s - Receiver %s", transaction.sender, transaction.receiver)
+        for (const transaction of transactions) {
+            const asset = await this.assetMap.fetchAsset(transaction.asset);
+            const displayAmount = await this.assetMap.getDisplayValue(asset.id, transaction.amount);
+            let knownAccount;
+            let receiverName = "You";
+            let senderName = "You";
+    
+            if (transaction.sender === transaction.receiver && displayAmount === 0) {
+                logger.info("User opted-into the '%s' ASA.", asset.name);
+                isOptIn = true;
+            } else if (transaction.sender === accountAddress) {
+                knownAccount = this.knownAddresses.getAccount(transaction.receiver);
+                receiverName = knownAccount.name;
+                outgoingTransfer = {
+                    asset: asset.name,
+                    amount: displayAmount,
+                    to: receiverName
+                };
+                logger.info("You transferred %d %s to the '%s' account", displayAmount, asset.name, receiverName);
+            } else if (transaction.receiver === accountAddress) {
+                knownAccount = this.knownAddresses.getAccount(transaction.sender);
+                senderName = knownAccount.name;
+                incomingTransfer = {
+                    asset: asset.name,
+                    amount: displayAmount,
+                    from: senderName
+                };
+                logger.info("You received %d %s from the '%s' account", displayAmount, asset.name, senderName); 
+            } else {
+                logger.error("What happened here? Sender %s - Receiver %s", transaction.sender, transaction.receiver);
+                throw new Error("Unknown transaction operation");
+            }
+        };
+
+        return {
+            incomingTransfer, outgoingTransfer, isOptIn
         }
     }
 
     async close() {
-        await this.database.close();
         this.fileWriter.close();
     }
 }
@@ -144,7 +257,7 @@ export async function analyzeTransactions(database, accountAddress) {
     for (let i = 0; i < groupIds.length; i++) {
         const groupId = groupIds[i];
         if (groupId == null) {
-            console.log("We'll handle this later.");
+            console.log("We'll handle these later.");
             continue;
         }
         const query = {
@@ -157,6 +270,17 @@ export async function analyzeTransactions(database, accountAddress) {
         };
         const transactionCursor = await transactionCollection.find(query, options);
         const transactions = await transactionCursor.toArray();
-        await transactionAnalyzer.analyzeTransactions(transactions, accountAddress);
+        let transactionGroup = transactions.reduce((acc,current,i) =>{
+            if (!acc[current.type]) {
+                acc[current.type] = [];
+            }
+            acc[current.type].push(current);
+            acc.timestamp = current.timestamp;
+            return acc;
+        }, {});
+        const result = await transactionAnalyzer.analyzeTransactions(transactionGroup, accountAddress);
+        console.log(result);
     }
+
+    transactionAnalyzer.close();
 }

@@ -1,92 +1,125 @@
 {
     "applications": [{
         "id": 233725850,
-        "name": "Yieldly Staking Contract"
+        "name": "Yieldly Staking Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 233725844,
-        "name": "Yieldly NLL Contract"
+        "name": "Yieldly NLL Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 233725843,
-        "name": "Yieldly Opting Contract"
+        "name": "Yieldly Opting Contract",
+        "intent": "OptIn",
+        "tag": "Yieldly"
     },
     {
         "id": 233725848,
-        "name": "Yieldly Proxy Contract"
+        "name": "Yieldly Proxy Contract",
+        "intent": "Unknown",
+        "tag": "Yieldly"
     },
     {
         "id": 348079765,
-        "name": "YLDLY x OPUL Staking Pools Contract"
+        "name": "YLDY x OPUL Staking Pools Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 447336112,
-        "name": "YLDLY x CHOICE Staking Pools Contract"
+        "name": "YLDY x CHOICE Staking Pools Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 464365150,
-        "name": "CHOICE x CHOICE Staking Pools Contract"
+        "name": "CHOICE x CHOICE Staking Pools Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 511597182,
-        "name": "YLDLY x AKITA Staking Pools Contract"
+        "name": "YLDY x AKITA Staking Pools Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 593289960,
-        "name": "YLDY x TREES Staking Pools Contract"
+        "name": "YLDY x TREES Staking Pools Contract",
+        "intent": "StakingPool",
+        "tag": "Yieldly"
     },
     {
         "id": 350338509,
-        "name": "Tinyman"
+        "name": "Tinyman",
+        "intent": "DefiSwap",
+        "tag": "Tinyman"
     },
     {
         "id": 465818260,
-        "name": "Algofi"
+        "name": "AlgoFi",
+        "intent": ["StakingPool", "DefiSwap"],
+        "tag": "AlgoFi"
     }],
     "accounts": [
         {
             "name": "Yieldly Escrow",
-            "address": "FMBXOFAQCSAD4UWU4Q7IX5AV4FRV6AKURJQYGXLW3CTPTQ7XBX6MALMSPY"
+            "address": "FMBXOFAQCSAD4UWU4Q7IX5AV4FRV6AKURJQYGXLW3CTPTQ7XBX6MALMSPY",
+            "intent": "Escrow"
         },
         {
-            "name": "YLDY x OPUL Staking Pool Escrow",
-            "address": "VUY44SYOFFJE3ZIDEMA6PT34J3FAZUAE6VVTOTUJ5LZ343V6WZ3ZJQTCD4"
+            "name": "(YLDY x OPUL) Yieldly Staking Pool Escrow",
+            "address": "VUY44SYOFFJE3ZIDEMA6PT34J3FAZUAE6VVTOTUJ5LZ343V6WZ3ZJQTCD4",
+            "intent": "StakingPool"
         },
         {
-            "name": "CHOICE x CHOICE Staking Pool Escrow",
-            "address": "GLHS7QEDDSQVHNTOVFELY3ISMB44TL7I7RQ36BNFW7KMJEZA4SQUFJHV6E"
+            "name": "(CHOICE x CHOICE) Yieldly Staking Pool Escrow",
+            "address": "GLHS7QEDDSQVHNTOVFELY3ISMB44TL7I7RQ36BNFW7KMJEZA4SQUFJHV6E",
+            "intent": "StakingPool"
         },
         {
-            "name": "YLDY x CHOICE Staking Pool Escrow",
-            "address": "YCHXDWES2VJDEKAHWPC344N6WK3FQOZL5VIZYMCDHDIUTTUZPC4IA6DEZY"
+            "name": "(YLDY x CHOICE) Yieldly Staking Pool Escrow",
+            "address": "YCHXDWES2VJDEKAHWPC344N6WK3FQOZL5VIZYMCDHDIUTTUZPC4IA6DEZY",
+            "intent": "StakingPool"
         },
         {
-            "name": "YLDY x OPUL Tinyman Liqudity Pool",
-            "address": "JI2ZFDHBL7TE3CSTIRCJE7LUAR5XSQYQQENCYCMMTQJCIIVXTZLSMS7UMQ"
+            "name": "(YLDY x OPUL) Tinyman Liqudity Pool",
+            "address": "JI2ZFDHBL7TE3CSTIRCJE7LUAR5XSQYQQENCYCMMTQJCIIVXTZLSMS7UMQ",
+            "intent": "LiquidityPool"
         },
         {
-            "name": "ALGO x CHOICE Tinyman Liqudity Pool",
-            "address": "4ADBL4JU6XRWT2DLWMNTQ7V7GLQUVVUQJ5NDWUNGXAJPRW3JGZ7HJUSC4I"
+            "name": "(ALGO x CHOICE) Tinyman Liqudity Pool",
+            "address": "4ADBL4JU6XRWT2DLWMNTQ7V7GLQUVVUQJ5NDWUNGXAJPRW3JGZ7HJUSC4I",
+            "intent": "LiquidityPool"
         },
         {
-            "name": "ALGO x USDC Tinyman Liqudity Pool",
-            "address": "W3RTY34WM3WNAPESJX3NCHX6KP32O6V2RI5WNB3RBKKZE3RQAXYTLNUWCI"
+            "name": "(ALGO x USDC) Tinyman Liqudity Pool",
+            "address": "W3RTY34WM3WNAPESJX3NCHX6KP32O6V2RI5WNB3RBKKZE3RQAXYTLNUWCI",
+            "intent": "LiquidityPool"
         },
         {
-            "name": "ALGO x OPUL Tinyman Liquidity Pool",
-            "address": "JA3HJ7OXYKTJNZFVVPHP7RSWPCUROXX3TL6L7YEBVMKK73QEDIVZSCLOGQ"
+            "name": "(ALGO x OPUL) Tinyman Liquidity Pool",
+            "address": "JA3HJ7OXYKTJNZFVVPHP7RSWPCUROXX3TL6L7YEBVMKK73QEDIVZSCLOGQ",
+            "intent": "LiquidityPool"
         },
         {
             "name": "Coinbase Pro",
-            "address": "UXVAPU4KERSMNUILDVZUKKF4KMWQ7RFSSYPXYSEGSYNYILC4FEHISKRBNM"
+            "address": "UXVAPU4KERSMNUILDVZUKKF4KMWQ7RFSSYPXYSEGSYNYILC4FEHISKRBNM",
+            "intent": "Wallet"
         },
         {
-            "name": "USDC x CHOICE Tinyman Liquidity Pool",
-            "address": "FRUG74S7Q3T5Y37GJAFQEFJCXXZ6K2PH4DRM67NL4HWZS5R4EPG6Z4H7KM"
+            "name": "(USDC x CHOICE) Tinyman Liquidity Pool",
+            "address": "FRUG74S7Q3T5Y37GJAFQEFJCXXZ6K2PH4DRM67NL4HWZS5R4EPG6Z4H7KM",
+            "intent": "LiquidityPool"
         },
         {
-            "name": "USDC x YLDY Tinyman Liquidity Pool",
-            "address": "RC7JNZWSFBRIEA5TXM24NW5ZRZOA3GZVEO562A54LPQI2ROOKEFIT3LRTA"
+            "name": "(USDC x YLDY) Tinyman Liquidity Pool",
+            "address": "RC7JNZWSFBRIEA5TXM24NW5ZRZOA3GZVEO562A54LPQI2ROOKEFIT3LRTA",
+            "intent": "LiquidityPool"
         }
     ],
     "assets": [

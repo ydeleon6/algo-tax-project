@@ -12,7 +12,7 @@ export function createNewLogger(sourceName) {
             splat(),
             myFormat
         ),
-        transports: [new transports.File({ filename: 'combined.log' }), new transports.Console()]
+        transports: [new transports.File({ filename: 'combined.log' }), /*new transports.Console()*/]
     });
     return logger;
 }
